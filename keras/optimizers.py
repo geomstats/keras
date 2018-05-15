@@ -187,16 +187,16 @@ class SGD(Optimizer):
 
             # Do the gradient descent on the manifold if present.
             if getattr(p, 'manifold', None) is not None:
-                print('MANIF')
                 shape = K.shape(v)
                 manifold = p.manifold
-                v_shaped = K.reshape(v, (manifold.dimension, -1))
-                p_shaped = K.reshape(p, (manifold.dimension, -1))
-                tangent_v = manifold.projection_to_tangent_space(
-                        vector=v_shaped, base_point=p_shaped)
+                embedding_dim = p.manifold.embedding_manifold.dimension
+                v_shaped = K.transpose(K.reshape(v, (embedding_dim, -1)))
+                p_shaped = K.transpose(K.reshape(p, (embedding_dim, -1)))
+                tangent_vec = manifold.projection_to_tangent_space(
+                    vector=v_shaped, base_point=p_shaped)
                 destination = manifold.metric.exp(
-                        base_point=p_shaped, vector=tangent_v)
-                new_p = K.reshape(destination, shape, name='new_p')
+                    base_point=p_shaped, tangent_vec=tangent_vec)
+                new_p = K.reshape(K.transpose(destination), shape)
             else:
                 new_p = p + v
 

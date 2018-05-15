@@ -469,7 +469,6 @@ class Conv2D(_Conv):
             bias_constraint=bias_constraint,
             **kwargs)
         self.input_spec = InputSpec(ndim=4)
-        print(kernel_manifold)
 
     def get_config(self):
         config = super(Conv2D, self).get_config()
