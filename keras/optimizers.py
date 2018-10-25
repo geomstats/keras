@@ -1,5 +1,4 @@
-"""Built-in optimizer classes.
-"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -178,15 +177,26 @@ class SGD(Optimizer):
             lr *= (1. / (1. + self.decay * K.cast(self.iterations,
                                                   K.dtype(self.decay))))
         # momentum
+        # TODO(johmathe): Add back nesterov.
         shapes = [K.int_shape(p) for p in params]
         moments = [K.zeros(shape) for shape in shapes]
         self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
-            v = self.momentum * m - lr * g  # velocity
+            v = self.momentum * m - lr * g
             self.updates.append(K.update(m, v))
 
-            if self.nesterov:
-                new_p = p + self.momentum * v - lr * g
+            # Do the gradient descent on the manifold if present.
+            if getattr(p, 'manifold', None) is not None:
+                shape = K.shape(v)
+                manifold = p.manifold
+                embedding_dim = p.manifold.embedding_manifold.dimension
+                v_shaped = K.transpose(K.reshape(v, (embedding_dim, -1)))
+                p_shaped = K.transpose(K.reshape(p, (embedding_dim, -1)))
+                tangent_vec = manifold.projection_to_tangent_space(
+                    vector=v_shaped, base_point=p_shaped)
+                destination = manifold.metric.exp(
+                    base_point=p_shaped, tangent_vec=tangent_vec)
+                new_p = K.reshape(K.transpose(destination), shape)
             else:
                 new_p = p + v
 
@@ -253,6 +263,7 @@ class RMSprop(Optimizer):
 
         for p, g, a in zip(params, grads, accumulators):
             # update accumulator
+
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
             self.updates.append(K.update(a, new_a))
             new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
